@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+} from "firebase/firestore";
+
 import { useRouter } from "expo-router";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase/config";
 
 type Evento = {
@@ -29,12 +38,23 @@ export default function Dashboard() {
     const q = query(collection(db, "eventos"), orderBy("creadoEn", "desc"));
     const resultado = await getDocs(q);
 
-    const lista = resultado.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
+    const lista = resultado.docs.map((documento) => ({
+      id: documento.id,
+      ...documento.data(),
     })) as Evento[];
 
     setEventos(lista);
+  };
+
+  const eliminarEvento = async (id: string) => {
+    const confirmar = confirm("¿Seguro que deseas eliminar este evento?");
+
+    if (!confirmar) return;
+
+    await deleteDoc(doc(db, "eventos", id));
+
+    Alert.alert("Éxito", "Evento eliminado correctamente");
+    cargarEventos();
   };
 
   useEffect(() => {
@@ -51,6 +71,20 @@ export default function Dashboard() {
         onPress={() => router.push("/crear-evento")}
       >
         <Text style={styles.textoBoton}>+ Crear evento</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.botonHistorial}
+        onPress={() => router.push("/historial")}
+      >
+        <Text style={styles.textoBoton}>Ver historial</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.botonEstadisticas}
+        onPress={() => router.push("/estadisticas")}
+      >
+        <Text style={styles.textoBoton}>Ver estadísticas</Text>
       </TouchableOpacity>
 
       <FlatList
@@ -78,6 +112,25 @@ export default function Dashboard() {
               }
             >
               <Text style={styles.textoBoton}>Ver detalle</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.botonEditar}
+              onPress={() =>
+                router.push({
+                  pathname: "/editar-evento",
+                  params: { id: item.id },
+                })
+              }
+            >
+              <Text style={styles.textoBoton}>Editar evento</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.botonEliminar}
+              onPress={() => eliminarEvento(item.id)}
+            >
+              <Text style={styles.textoBoton}>Eliminar evento</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -108,10 +161,38 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     alignItems: "center",
+    marginBottom: 10,
+  },
+  botonHistorial: {
+    backgroundColor: "#673AB7",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  botonEstadisticas: {
+    backgroundColor: "#FF9800",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
     marginBottom: 20,
   },
   botonDetalle: {
     backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  botonEditar: {
+    backgroundColor: "#009688",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  botonEliminar: {
+    backgroundColor: "#F44336",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
