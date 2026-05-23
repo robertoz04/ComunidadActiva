@@ -1,17 +1,37 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    Share,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+
+import { useLocalSearchParams, useRouter } from "expo-router";
+
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
+
 import { auth, db } from "../firebase/config";
+
+type Comentario = {
+  id: string;
+  usuarioEmail: string;
+  comentario: string;
+  calificacion: number;
+};
 
 export default function DetalleEvento() {
   const { id } = useLocalSearchParams();
@@ -20,6 +40,7 @@ export default function DetalleEvento() {
   const [evento, setEvento] = useState<any>(null);
   const [comentario, setComentario] = useState("");
   const [calificacion, setCalificacion] = useState("");
+  const [comentarios, setComentarios] = useState<Comentario[]>([]);
 
   const cargarEvento = async () => {
     if (!id) return;
@@ -32,28 +53,28 @@ export default function DetalleEvento() {
     }
   };
 
+  const cargarComentarios = async () => {
+    if (!id) return;
+
+    const q = query(
+      collection(db, "comentarios"),
+      where("eventoId", "==", String(id))
+    );
+
+    const resultado = await getDocs(q);
+
+    const lista = resultado.docs.map((documento) => ({
+      id: documento.id,
+      ...documento.data(),
+    })) as Comentario[];
+
+    setComentarios(lista);
+  };
+
   useEffect(() => {
     cargarEvento();
+    cargarComentarios();
   }, [id]);
-
-  if (!id) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.titulo}>No se encontró el evento</Text>
-        <TouchableOpacity style={styles.boton} onPress={() => router.push("/dashboard")}>
-          <Text style={styles.textoBoton}>Volver al Dashboard</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (!evento) {
-    return (
-      <View style={styles.container}>
-        <Text>Cargando evento...</Text>
-      </View>
-    );
-  }
 
   const confirmarAsistencia = async () => {
     if (!auth.currentUser) {
@@ -91,7 +112,7 @@ export default function DetalleEvento() {
     }
 
     await addDoc(collection(db, "comentarios"), {
-      eventoId: id,
+      eventoId: String(id),
       usuarioId: auth.currentUser.uid,
       usuarioEmail: auth.currentUser.email,
       comentario,
@@ -100,18 +121,48 @@ export default function DetalleEvento() {
     });
 
     Alert.alert("Éxito", "Comentario guardado");
+
     setComentario("");
     setCalificacion("");
+    cargarComentarios();
   };
 
-  const compartirEvento = async () => {
-    await Share.share({
-      message: `Te invito al evento: ${evento.titulo}
-Fecha: ${evento.fecha}
-Hora: ${evento.hora}
-Lugar: ${evento.ubicacion}`,
-    });
-  };
+ const compartirEvento = async () => {
+  if (!evento) {
+    Alert.alert("Error", "El evento todavía no ha cargado");
+    return;
+  }
+
+  await Share.share({
+    message: `Te invito al evento: ${evento.titulo || ""}
+Fecha: ${evento.fecha || ""}
+Hora: ${evento.hora || ""}
+Lugar: ${evento.ubicacion || ""}`,
+  });
+};
+
+  if (!id) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.titulo}>No se encontró el evento</Text>
+
+        <TouchableOpacity
+          style={styles.boton}
+          onPress={() => router.push("/dashboard")}
+        >
+          <Text style={styles.textoBoton}>Volver al Dashboard</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!evento) {
+    return (
+      <View style={styles.container}>
+        <Text>Cargando evento...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -122,7 +173,6 @@ Lugar: ${evento.ubicacion}`,
         <Text style={styles.texto}>📅 {evento.fecha}</Text>
         <Text style={styles.texto}>🕒 {evento.hora}</Text>
         <Text style={styles.texto}>📍 {evento.ubicacion}</Text>
-        <Text style={styles.estado}>Estado: {evento.estado}</Text>
       </View>
 
       <TouchableOpacity style={styles.boton} onPress={confirmarAsistencia}>
@@ -150,23 +200,120 @@ Lugar: ${evento.ubicacion}`,
         onChangeText={setCalificacion}
       />
 
-      <TouchableOpacity style={styles.botonComentario} onPress={guardarComentario}>
+      <TouchableOpacity
+        style={styles.botonComentario}
+        onPress={guardarComentario}
+      >
         <Text style={styles.textoBoton}>Guardar comentario</Text>
       </TouchableOpacity>
+
+      <Text style={styles.subtitulo}>Comentarios del evento</Text>
+
+      <FlatList
+        data={comentarios}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+        ListEmptyComponent={
+          <Text style={styles.vacio}>Aún no hay comentarios.</Text>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.comentarioCard}>
+            <Text style={styles.email}>{item.usuarioEmail}</Text>
+            <Text style={styles.comentarioTexto}>{item.comentario}</Text>
+            <Text style={styles.calificacion}>
+              Calificación: {item.calificacion}/5
+            </Text>
+          </View>
+        )}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#F4F6F8" },
-  titulo: { fontSize: 28, fontWeight: "bold", textAlign: "center", marginVertical: 20 },
-  card: { backgroundColor: "#fff", padding: 18, borderRadius: 15, marginBottom: 20 },
-  texto: { fontSize: 16, marginBottom: 8 },
-  estado: { fontWeight: "bold", color: "#4CAF50", marginTop: 10 },
-  boton: { backgroundColor: "#2196F3", padding: 15, borderRadius: 12, alignItems: "center", marginBottom: 10 },
-  botonCompartir: { backgroundColor: "#673AB7", padding: 15, borderRadius: 12, alignItems: "center", marginBottom: 20 },
-  botonComentario: { backgroundColor: "#4CAF50", padding: 15, borderRadius: 12, alignItems: "center", marginBottom: 30 },
-  textoBoton: { color: "#fff", fontWeight: "bold" },
-  subtitulo: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
-  input: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", padding: 15, borderRadius: 10, marginBottom: 12 },
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#F4F6F8",
+  },
+  titulo: {
+    fontSize: 28,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginVertical: 20,
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 18,
+    borderRadius: 15,
+    marginBottom: 20,
+  },
+  texto: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  boton: {
+    backgroundColor: "#2196F3",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  botonCompartir: {
+    backgroundColor: "#673AB7",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  botonComentario: {
+    backgroundColor: "#4CAF50",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 25,
+  },
+  textoBoton: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  subtitulo: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  input: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  comentarioCard: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  email: {
+    fontWeight: "bold",
+    color: "#2563EB",
+    marginBottom: 5,
+  },
+  comentarioTexto: {
+    fontSize: 15,
+    color: "#333",
+    marginBottom: 5,
+  },
+  calificacion: {
+    fontWeight: "bold",
+    color: "#F59E0B",
+  },
+  vacio: {
+    textAlign: "center",
+    color: "#64748B",
+    marginBottom: 20,
+  },
 });
