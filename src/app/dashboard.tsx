@@ -67,6 +67,18 @@ export default function Dashboard() {
             <Text style={styles.cardTexto}>🕒 {item.hora}</Text>
             <Text style={styles.cardTexto}>📍 {item.ubicacion}</Text>
             <Text style={styles.estado}>Estado: {item.estado}</Text>
+
+            <TouchableOpacity
+              style={styles.botonDetalle}
+              onPress={() =>
+                router.push({
+                  pathname: "/detalle-evento",
+                  params: { id: item.id },
+                })
+              }
+            >
+              <Text style={styles.textoBoton}>Ver detalle</Text>
+            </TouchableOpacity>
           </View>
         )}
       />
@@ -98,6 +110,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
+  botonDetalle: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
   textoBoton: {
     color: "#fff",
     fontWeight: "bold",
@@ -107,7 +126,6 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 15,
     marginBottom: 15,
-    elevation: 3,
   },
   cardTitulo: {
     fontSize: 20,
