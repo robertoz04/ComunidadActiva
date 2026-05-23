@@ -1,17 +1,30 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
+
 import { auth, db } from "../firebase/config";
 
-type Asistencia = {
+type HistorialItem = {
   id: string;
   eventoId: string;
   usuarioEmail: string;
   confirmado: boolean;
+  titulo: string;
+  fecha: string;
+  hora: string;
+  ubicacion: string;
 };
 
 export default function Historial() {
-  const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
+  const [historial, setHistorial] = useState<HistorialItem[]>([]);
 
   const cargarHistorial = async () => {
     if (!auth.currentUser) return;
@@ -23,12 +36,29 @@ export default function Historial() {
 
     const resultado = await getDocs(q);
 
-    const lista = resultado.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Asistencia[];
+    const lista = await Promise.all(
+      resultado.docs.map(async (documento) => {
+        const asistencia = documento.data();
 
-    setAsistencias(lista);
+        const eventoRef = doc(db, "eventos", asistencia.eventoId);
+        const eventoSnap = await getDoc(eventoRef);
+
+        const evento = eventoSnap.exists() ? eventoSnap.data() : {};
+
+        return {
+          id: documento.id,
+          eventoId: asistencia.eventoId,
+          usuarioEmail: asistencia.usuarioEmail,
+          confirmado: asistencia.confirmado,
+          titulo: evento.titulo || "Evento no encontrado",
+          fecha: evento.fecha || "Sin fecha",
+          hora: evento.hora || "Sin hora",
+          ubicacion: evento.ubicacion || "Sin ubicación",
+        };
+      })
+    );
+
+    setHistorial(lista);
   };
 
   useEffect(() => {
@@ -40,17 +70,24 @@ export default function Historial() {
       <Text style={styles.titulo}>Historial de Participación</Text>
 
       <FlatList
-        data={asistencias}
+        data={historial}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          <Text style={styles.vacio}>No has confirmado asistencia todavía.</Text>
+          <Text style={styles.vacio}>
+            No has confirmado asistencia todavía.
+          </Text>
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.texto}>Evento ID: {item.eventoId}</Text>
+            <Text style={styles.cardTitulo}>{item.titulo}</Text>
+            <Text style={styles.texto}>📅 {item.fecha}</Text>
+            <Text style={styles.texto}>🕒 {item.hora}</Text>
+            <Text style={styles.texto}>📍 {item.ubicacion}</Text>
             <Text style={styles.texto}>Usuario: {item.usuarioEmail}</Text>
             <Text style={styles.estado}>
-              Estado: {item.confirmado ? "Asistencia confirmada" : "Pendiente"}
+              {item.confirmado
+                ? "Asistencia confirmada"
+                : "Asistencia pendiente"}
             </Text>
           </View>
         )}
@@ -70,6 +107,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     marginVertical: 30,
+    color: "#1E293B",
   },
   card: {
     backgroundColor: "#fff",
@@ -77,17 +115,24 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 15,
   },
+  cardTitulo: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: "#0F172A",
+  },
   texto: {
     fontSize: 16,
     marginBottom: 8,
+    color: "#475569",
   },
   estado: {
     fontWeight: "bold",
-    color: "#4CAF50",
+    color: "#16A34A",
   },
   vacio: {
     textAlign: "center",
-    color: "#777",
+    color: "#64748B",
     marginTop: 30,
   },
 });

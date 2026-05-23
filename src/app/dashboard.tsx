@@ -20,7 +20,7 @@ import {
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { db } from "../firebase/config";
+import { auth, db } from "../firebase/config";
 
 type Evento = {
   id: string;
@@ -57,7 +57,13 @@ export default function Dashboard() {
     setEventos(lista);
   };
 
-  const eliminarEvento = async (id: string) => {
+  const cerrarSesion = async () => {
+  await auth.signOut();
+  await AsyncStorage.removeItem("rol");
+  router.replace("/login");
+};
+
+const eliminarEvento = async (id: string) => {
     const confirmar = confirm("¿Seguro que deseas eliminar este evento?");
 
     if (!confirmar) return;
@@ -169,6 +175,14 @@ export default function Dashboard() {
       <Text style={styles.titulo}>Comunidad Activa</Text>
       <Text style={styles.subtitulo}>Agenda comunitaria</Text>
 
+        <TouchableOpacity
+          style={styles.botonLogout}
+          onPress={cerrarSesion}
+        >
+          <Text style={styles.textoBoton}>Cerrar sesión</Text>
+        </TouchableOpacity>
+
+
       <View style={styles.menu}>
         {rol === "organizador" && (
           <TouchableOpacity
@@ -264,6 +278,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
+
+  botonLogout: {
+  backgroundColor: "#DC2626",
+  padding: 12,
+  borderRadius: 10,
+  alignItems: "center",
+  marginBottom: 15,
+},
   seccionTitulo: {
     fontSize: 22,
     fontWeight: "bold",
