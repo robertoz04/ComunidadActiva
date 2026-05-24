@@ -20,7 +20,7 @@ import {
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { auth, db } from "../firebase/config";
+import { auth, db } from "../../firebase/config";
 
 type Evento = {
   id: string;
@@ -58,14 +58,13 @@ export default function Dashboard() {
   };
 
   const cerrarSesion = async () => {
-  await auth.signOut();
-  await AsyncStorage.removeItem("rol");
-  router.replace("/login");
-};
+    await auth.signOut();
+    await AsyncStorage.removeItem("rol");
+    router.replace("/login");
+  };
 
-const eliminarEvento = async (id: string) => {
+  const eliminarEvento = async (id: string) => {
     const confirmar = confirm("¿Seguro que deseas eliminar este evento?");
-
     if (!confirmar) return;
 
     await deleteDoc(doc(db, "eventos", id));
@@ -94,6 +93,39 @@ const eliminarEvento = async (id: string) => {
     fechaEvento.setHours(0, 0, 0, 0);
     return fechaEvento < hoy;
   });
+
+  const notificaciones = eventosProximos
+    .map((evento) => {
+      const fechaEvento = obtenerFechaLocal(evento.fecha);
+      fechaEvento.setHours(0, 0, 0, 0);
+
+      const diferenciaDias = Math.ceil(
+        (fechaEvento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (diferenciaDias === 0) {
+        return {
+          id: evento.id,
+          texto: `🔔 Hoy tienes el evento "${evento.titulo}" a las ${evento.hora}`,
+          tipo: "hoy",
+        };
+      }
+
+      if (diferenciaDias === 1) {
+        return {
+          id: evento.id,
+          texto: `⏰ Mañana tienes el evento "${evento.titulo}" a las ${evento.hora}`,
+          tipo: "manana",
+        };
+      }
+
+      return null;
+    })
+    .filter((item) => item !== null) as {
+    id: string;
+    texto: string;
+    tipo: string;
+  }[];
 
   const renderEvento = ({ item }: { item: Evento }) => {
     const fechaEvento = obtenerFechaLocal(item.fecha);
@@ -175,40 +207,29 @@ const eliminarEvento = async (id: string) => {
       <Text style={styles.titulo}>Comunidad Activa</Text>
       <Text style={styles.subtitulo}>Agenda comunitaria</Text>
 
-        <TouchableOpacity
-          style={styles.botonLogout}
-          onPress={cerrarSesion}
-        >
-          <Text style={styles.textoBoton}>Cerrar sesión</Text>
+      <View style={styles.headerActions}>
+        <TouchableOpacity style={styles.botonSalir} onPress={cerrarSesion}>
+          <Text style={styles.textoSalir}>Cerrar sesión</Text>
         </TouchableOpacity>
-
-
-      <View style={styles.menu}>
-        {rol === "organizador" && (
-          <TouchableOpacity
-            style={styles.botonCrear}
-            onPress={() => router.push("/crear-evento")}
-          >
-            <Text style={styles.textoBoton}>+ Crear evento</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={styles.botonHistorial}
-          onPress={() => router.push("/historial")}
-        >
-          <Text style={styles.textoBoton}>Historial</Text>
-        </TouchableOpacity>
-
-        {rol === "organizador" && (
-          <TouchableOpacity
-            style={styles.botonEstadisticas}
-            onPress={() => router.push("/estadisticas")}
-          >
-            <Text style={styles.textoBoton}>Estadísticas</Text>
-          </TouchableOpacity>
-        )}
       </View>
+
+      {notificaciones.length > 0 && (
+        <View style={styles.notificacionesCard}>
+          <Text style={styles.notificacionesTitulo}>🔔 Recordatorios</Text>
+
+          {notificaciones.map((notificacion) => (
+            <Text
+              key={notificacion.id}
+              style={[
+                styles.notificacionTexto,
+                notificacion.tipo === "hoy" && styles.notificacionHoy,
+              ]}
+            >
+              {notificacion.texto}
+            </Text>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.seccionTitulo}>Próximos eventos</Text>
 
@@ -233,6 +254,15 @@ const eliminarEvento = async (id: string) => {
           <Text style={styles.vacio}>No hay eventos pasados.</Text>
         }
       />
+
+      {rol === "organizador" && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push("/crear-evento")}
+        >
+          <Text style={styles.fabTexto}>+</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -255,37 +285,67 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginBottom: 20,
   },
-  menu: {
+  headerActions: {
+    alignItems: "center",
     marginBottom: 20,
   },
-  botonCrear: {
+  botonSalir: {
+    backgroundColor: "#FEE2E2",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+  },
+  textoSalir: {
+    color: "#DC2626",
+    fontWeight: "bold",
+  },
+  fab: {
+    position: "absolute",
+    right: 0,
+    top: 82,
+    width: 58,
+    height: 58,
+    borderRadius: 30,
     backgroundColor: "#2563EB",
-    padding: 15,
-    borderRadius: 12,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
   },
-  botonHistorial: {
-    backgroundColor: "#7C3AED",
-    padding: 15,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 10,
+  fabTexto: {
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: "bold",
   },
-  botonEstadisticas: {
-    backgroundColor: "#F59E0B",
-    padding: 15,
-    borderRadius: 12,
-    alignItems: "center",
+  notificacionesCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 18,
+    elevation: 3,
+    borderLeftWidth: 5,
+    borderLeftColor: "#F59E0B",
   },
-
-  botonLogout: {
-  backgroundColor: "#DC2626",
-  padding: 12,
-  borderRadius: 10,
-  alignItems: "center",
-  marginBottom: 15,
-},
+  notificacionesTitulo: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  notificacionTexto: {
+    color: "#92400E",
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  notificacionHoy: {
+    color: "#DC2626",
+  },
   seccionTitulo: {
     fontSize: 22,
     fontWeight: "bold",
@@ -295,10 +355,17 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 15,
-    elevation: 3,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 4,
   },
   fechaBox: {
     width: 90,
@@ -348,28 +415,29 @@ const styles = StyleSheet.create({
   },
   botonDetalle: {
     backgroundColor: "#22C55E",
-    padding: 11,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 10,
   },
   botonEditar: {
     backgroundColor: "#0D9488",
-    padding: 11,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 8,
   },
   botonEliminar: {
     backgroundColor: "#EF4444",
-    padding: 11,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 8,
   },
   textoBoton: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "600",
+    fontSize: 16,
   },
   vacio: {
     textAlign: "center",

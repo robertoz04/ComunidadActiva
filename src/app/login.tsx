@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState } from "react";
 import {
   Alert,
@@ -9,10 +8,13 @@ import {
   View,
 } from "react-native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+
 import { auth, db } from "../firebase/config";
+import { colors } from "../styles/theme";
 
 export default function Login() {
   const router = useRouter();
@@ -39,44 +41,46 @@ export default function Login() {
       if (usuarioSnap.exists()) {
         const data = usuarioSnap.data();
 
-      await AsyncStorage.setItem("rol", data.rol);
-      await AsyncStorage.setItem("email", credencial.user.email || "");
+        await AsyncStorage.setItem("rol", data.rol);
+        await AsyncStorage.setItem("email", credencial.user.email || "");
       }
 
-      Alert.alert("Bienvenido");
-      router.push("/dashboard");
+      router.replace("../tabs/dashboard");
     } catch (error: any) {
-  console.log("ERROR LOGIN:", error.code, error.message);
-  Alert.alert("Error", `${error.code}\n${error.message}`);
-}
+      Alert.alert("Error", "Correo o contraseña incorrectos");
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>Login</Text>
+      <View style={styles.card}>
+        <Text style={styles.logo}>🌎</Text>
+        <Text style={styles.titulo}>Comunidad Activa</Text>
+        <Text style={styles.subtitulo}>Inicia sesión para continuar</Text>
 
-      <TextInput
-        placeholder="Correo"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-      />
+        <TextInput
+          placeholder="Correo electrónico"
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+        />
 
-      <TextInput
-        placeholder="Contraseña"
-        secureTextEntry
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
+        <TextInput
+          placeholder="Contraseña"
+          secureTextEntry
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+        />
 
-      <TouchableOpacity style={styles.boton} onPress={iniciarSesion}>
-        <Text style={styles.textoBoton}>Ingresar</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.boton} onPress={iniciarSesion}>
+          <Text style={styles.textoBoton}>Ingresar</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/registro")}>
-        <Text style={styles.link}>¿No tienes cuenta? Regístrate</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/registro")}>
+          <Text style={styles.link}>¿No tienes cuenta? Regístrate</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -84,29 +88,47 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "#fff",
+  },
+  card: {
+    backgroundColor: colors.card,
+    padding: 25,
+    borderRadius: 22,
+    elevation: 4,
+  },
+  logo: {
+    fontSize: 45,
+    textAlign: "center",
+    marginBottom: 10,
   },
   titulo: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: "bold",
-    marginBottom: 30,
     textAlign: "center",
+    color: colors.text,
+  },
+  subtitulo: {
+    textAlign: "center",
+    color: colors.muted,
+    marginBottom: 25,
   },
   input: {
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.border,
     padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
+    borderRadius: 12,
+    marginBottom: 14,
   },
   boton: {
-    backgroundColor: "#2196F3",
+    backgroundColor: colors.primary,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: "center",
-    marginBottom: 20,
+    marginTop: 5,
+    marginBottom: 18,
   },
   textoBoton: {
     color: "#fff",
@@ -115,7 +137,7 @@ const styles = StyleSheet.create({
   },
   link: {
     textAlign: "center",
-    color: "#2196F3",
+    color: colors.primary,
     fontWeight: "bold",
   },
 });

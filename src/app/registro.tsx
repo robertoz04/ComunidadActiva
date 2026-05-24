@@ -8,21 +8,18 @@ import {
   View,
 } from "react-native";
 
-import { Picker } from "@react-native-picker/picker";
-
+import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 
-import { useRouter } from "expo-router";
 import { auth, db } from "../firebase/config";
+import { colors } from "../styles/theme";
 
 export default function Registro() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const [rol, setRol] = useState("usuario");
 
   const registrarUsuario = async () => {
     if (!email || !password) {
@@ -40,17 +37,12 @@ export default function Registro() {
       await setDoc(doc(db, "usuarios", credencial.user.uid), {
         uid: credencial.user.uid,
         email: credencial.user.email,
-        rol,
+        rol: "usuario",
         creadoEn: serverTimestamp(),
       });
 
       Alert.alert("Éxito", "Usuario registrado correctamente");
-
-      setEmail("");
-      setPassword("");
-      setRol("usuario");
-
-      router.push("/login");
+      router.replace("/login");
     } catch (error: any) {
       Alert.alert("Error", error.message);
     }
@@ -58,44 +50,42 @@ export default function Registro() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>Registro</Text>
-
-      <TextInput
-        placeholder="Correo"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        placeholder="Contraseña"
-        secureTextEntry
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <Text style={styles.label}>Selecciona el rol</Text>
-
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={rol}
-          onValueChange={(itemValue) => setRol(itemValue)}
-        >
-          <Picker.Item label="Usuario" value="usuario" />
-          <Picker.Item label="Organizador" value="organizador" />
-        </Picker>
-      </View>
-
-      <TouchableOpacity style={styles.boton} onPress={registrarUsuario}>
-        <Text style={styles.textoBoton}>Registrarse</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => router.push("/login")}>
-        <Text style={styles.link}>
-          ¿Ya tienes cuenta? Inicia sesión
+      <View style={styles.card}>
+        <Text style={styles.logo}>🤝</Text>
+        <Text style={styles.titulo}>Crear cuenta</Text>
+        <Text style={styles.subtitulo}>
+          Regístrate para participar en eventos comunitarios
         </Text>
-      </TouchableOpacity>
+
+        <TextInput
+          placeholder="Correo electrónico"
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        <TextInput
+          placeholder="Contraseña"
+          secureTextEntry
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        <View style={styles.infoRol}>
+          <Text style={styles.infoRolTexto}>
+            Al registrarte ingresarás como usuario participante.
+          </Text>
+        </View>
+
+        <TouchableOpacity style={styles.boton} onPress={registrarUsuario}>
+          <Text style={styles.textoBoton}>Registrarse</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/login")}>
+          <Text style={styles.link}>¿Ya tienes cuenta? Inicia sesión</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -103,57 +93,66 @@ export default function Registro() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "#fff",
   },
-
-  titulo: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 30,
+  card: {
+    backgroundColor: colors.card,
+    padding: 25,
+    borderRadius: 22,
+    elevation: 4,
+  },
+  logo: {
+    fontSize: 45,
     textAlign: "center",
-  },
-
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-
-  label: {
-    fontSize: 16,
     marginBottom: 10,
+  },
+  titulo: {
+    fontSize: 30,
     fontWeight: "bold",
+    textAlign: "center",
+    color: colors.text,
   },
-
-  pickerContainer: {
+  subtitulo: {
+    textAlign: "center",
+    color: colors.muted,
+    marginBottom: 25,
+  },
+  input: {
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    marginBottom: 20,
-    overflow: "hidden",
-  },
-
-  boton: {
-    backgroundColor: "#4CAF50",
+    borderColor: colors.border,
     padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 20,
+    borderRadius: 12,
+    marginBottom: 14,
   },
-
+  infoRol: {
+    backgroundColor: "#DBEAFE",
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 18,
+  },
+  infoRolTexto: {
+    color: colors.primary,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  boton: {
+    backgroundColor: colors.success,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 18,
+  },
   textoBoton: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
   },
-
   link: {
     textAlign: "center",
-    color: "#2196F3",
+    color: colors.primary,
     fontWeight: "bold",
   },
 });
