@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
+  Linking,
   ScrollView,
   Share,
   StyleSheet,
@@ -128,7 +129,7 @@ export default function DetalleEvento() {
     cargarComentarios();
   };
 
-  const compartirEvento = async () => {
+    const compartirEvento = async () => {
     if (!evento) {
       Alert.alert("Error", "El evento todavía no ha cargado");
       return;
@@ -140,6 +141,32 @@ Fecha: ${evento.fecha}
 Hora: ${evento.hora}
 Lugar: ${evento.ubicacion}`,
     });
+  };
+
+  const compartirPorCorreo = async () => {
+    if (!evento) {
+      Alert.alert("Error", "El evento todavía no ha cargado");
+      return;
+    }
+
+    const asunto = `Invitación al evento: ${evento.titulo}`;
+
+    const cuerpo = `Hola, te comparto este evento comunitario:
+
+Título: ${evento.titulo}
+Descripción: ${evento.descripcion}
+Fecha: ${evento.fecha}
+Hora: ${evento.hora}
+Lugar: ${evento.ubicacion}
+
+Te esperamos.`;
+
+    const url = `mailto:?subject=${encodeURIComponent(
+      asunto
+    )}&body=${encodeURIComponent(cuerpo)}`;
+
+    await Linking.openURL(url);
+
   };
 
   if (!id) {
@@ -187,6 +214,10 @@ Lugar: ${evento.ubicacion}`,
       <TouchableOpacity style={styles.botonCompartir} onPress={compartirEvento}>
         <Text style={styles.textoBoton}>📤 Compartir evento</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity style={styles.botonCorreo} onPress={compartirPorCorreo}>
+  <Text style={styles.textoBoton}>📧 Compartir por correo</Text>
+</TouchableOpacity>
 
       <View style={styles.card}>
         <Text style={styles.seccionTitulo}>Comentario y calificación</Text>
@@ -300,6 +331,14 @@ const styles = StyleSheet.create({
 
 botonCompartir: {
   backgroundColor: "#EDE9FE",
+  paddingVertical: 13,
+  borderRadius: 18,
+  alignItems: "center",
+  marginBottom: 18,
+},
+
+botonCorreo: {
+  backgroundColor: "#FEF3C7",
   paddingVertical: 13,
   borderRadius: 18,
   alignItems: "center",
