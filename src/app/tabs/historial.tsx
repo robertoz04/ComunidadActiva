@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -35,12 +36,20 @@ export default function Historial() {
   const router = useRouter();
   const [historial, setHistorial] = useState<HistorialItem[]>([]);
 
+  const obtenerFechaLocal = (fecha: string) => {
+    const [year, month, day] = fecha.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
   const cargarHistorial = async () => {
     if (!auth.currentUser) return;
 
     const q = query(
       collection(db, "asistencias"),
-      where("usuarioId", "==", auth.currentUser.uid)
+      where("usuarioEmail", "==", auth.currentUser.email)
     );
 
     const resultado = await getDocs(q);
@@ -74,55 +83,109 @@ export default function Historial() {
     cargarHistorial();
   }, []);
 
+  const historialProximo = historial.filter((item) => {
+    if (item.fecha === "Sin fecha") return false;
+
+    const fechaEvento = obtenerFechaLocal(item.fecha);
+    fechaEvento.setHours(0, 0, 0, 0);
+
+    return fechaEvento >= hoy;
+  });
+
+  const historialPasado = historial.filter((item) => {
+    if (item.fecha === "Sin fecha") return false;
+
+    const fechaEvento = obtenerFechaLocal(item.fecha);
+    fechaEvento.setHours(0, 0, 0, 0);
+
+    return fechaEvento < hoy;
+  });
+
+  const renderHistorial = ({ item }: { item: HistorialItem }) => {
+    const fechaEvento = obtenerFechaLocal(item.fecha);
+    fechaEvento.setHours(0, 0, 0, 0);
+
+    const esPasado = fechaEvento < hoy;
+
+    return (
+      <View style={styles.card}>
+        <View
+          style={[
+            styles.badge,
+            esPasado ? styles.badgePasado : styles.badgeProximo,
+          ]}
+        >
+          <Text
+            style={[
+              styles.badgeTexto,
+              esPasado ? styles.badgeTextoPasado : styles.badgeTextoProximo,
+            ]}
+          >
+            {esPasado ? "Evento asistido" : "Próxima asistencia"}
+          </Text>
+        </View>
+
+        <Text style={styles.cardTitulo}>{item.titulo}</Text>
+
+        <View style={styles.infoBox}>
+          <Text style={styles.texto}>📅 {item.fecha}</Text>
+          <Text style={styles.texto}>🕒 {item.hora}</Text>
+          <Text style={styles.texto}>📍 {item.ubicacion}</Text>
+          <Text style={styles.texto}>👤 {item.usuarioEmail}</Text>
+        </View>
+
+        <Text style={styles.estado}>
+          {item.confirmado
+            ? "Asistencia confirmada"
+            : "Asistencia pendiente"}
+        </Text>
+      </View>
+    );
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <Text style={styles.titulo}>Historial</Text>
+
       <Text style={styles.subtitulo}>
-        Eventos donde confirmaste participación
+        Próximas asistencias y eventos completados
       </Text>
 
+      <Text style={styles.seccion}>⏳ Próximas asistencias</Text>
+
       <FlatList
-        data={historial}
+        data={historialProximo}
         keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+        renderItem={renderHistorial}
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.vacio}>
-              No has confirmado asistencia todavía.
-            </Text>
-          </View>
+          <Text style={styles.vacio}>
+            No tienes próximas asistencias confirmadas.
+          </Text>
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeTexto}>Confirmado</Text>
-            </View>
+      />
 
-            <Text style={styles.cardTitulo}>{item.titulo}</Text>
+      <Text style={styles.seccion}>✅ Eventos asistidos</Text>
 
-            <View style={styles.infoBox}>
-              <Text style={styles.texto}>📅 {item.fecha}</Text>
-              <Text style={styles.texto}>🕒 {item.hora}</Text>
-              <Text style={styles.texto}>📍 {item.ubicacion}</Text>
-              <Text style={styles.texto}>👤 {item.usuarioEmail}</Text>
-            </View>
-
-            <Text style={styles.estado}>
-              {item.confirmado
-                ? "Asistencia confirmada"
-                : "Asistencia pendiente"}
-            </Text>
-          </View>
-        )}
+      <FlatList
+        data={historialPasado}
+        keyExtractor={(item) => item.id}
+        scrollEnabled={false}
+        renderItem={renderHistorial}
+        ListEmptyComponent={
+          <Text style={styles.vacio}>
+            No tienes eventos asistidos registrados.
+          </Text>
+        }
       />
 
       <TouchableOpacity
         style={styles.botonVolver}
-        onPress={() => router.push("../tabs/dashboard")}
+        onPress={() => router.push("/(tabs)/dashboard")}
       >
         <Text style={styles.textoBotonVolver}>Volver al inicio</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -144,6 +207,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 25,
   },
+  seccion: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginTop: 20,
+    marginBottom: 12,
+    color: "#0F172A",
+  },
   card: {
     backgroundColor: colors.card,
     padding: 20,
@@ -152,16 +222,26 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   badge: {
-    backgroundColor: "#DCFCE7",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
     alignSelf: "flex-start",
     marginBottom: 10,
   },
+  badgeProximo: {
+    backgroundColor: "#DBEAFE",
+  },
+  badgePasado: {
+    backgroundColor: "#DCFCE7",
+  },
   badgeTexto: {
-    color: colors.success,
     fontWeight: "bold",
+  },
+  badgeTextoProximo: {
+    color: colors.primary,
+  },
+  badgeTextoPasado: {
+    color: colors.success,
   },
   cardTitulo: {
     fontSize: 21,
@@ -184,20 +264,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: colors.success,
   },
-  emptyCard: {
-    backgroundColor: colors.card,
-    padding: 30,
-    borderRadius: 22,
-    alignItems: "center",
-    elevation: 3,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
   vacio: {
     textAlign: "center",
     color: colors.muted,
+    marginBottom: 15,
   },
   botonVolver: {
     padding: 15,

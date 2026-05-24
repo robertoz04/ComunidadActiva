@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   StyleSheet,
@@ -9,18 +9,80 @@ import {
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Google from "expo-auth-session/providers/google";
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import * as WebBrowser from "expo-web-browser";
+
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+
+import {
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 
 import { auth, db } from "../firebase/config";
 import { colors } from "../styles/theme";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Login() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+  webClientId:
+    "300361180136-kjarp2r4cg1mnk43mv6893nqebfge010.apps.googleusercontent.com",
+
+  androidClientId:
+    "300361180136-kjarp2r4cg1mnk43mv6893nqebfge010.apps.googleusercontent.com",
+});
+  useEffect(() => {
+    const iniciarConGoogle = async () => {
+      if (response?.type === "success") {
+        try {
+          const { id_token } = response.params;
+
+          const credential = GoogleAuthProvider.credential(id_token);
+
+          const resultado = await signInWithCredential(auth, credential);
+
+          const usuarioRef = doc(db, "usuarios", resultado.user.uid);
+          const usuarioSnap = await getDoc(usuarioRef);
+
+          let rolUsuario = "usuario";
+
+          if (!usuarioSnap.exists()) {
+            await setDoc(usuarioRef, {
+              uid: resultado.user.uid,
+              email: resultado.user.email,
+              rol: "usuario",
+              creadoEn: serverTimestamp(),
+            });
+          } else {
+            const data = usuarioSnap.data();
+            rolUsuario = data.rol || "usuario";
+          }
+
+          await AsyncStorage.setItem("rol", rolUsuario);
+          await AsyncStorage.setItem("email", resultado.user.email || "");
+
+          router.replace("/tabs/dashboard");
+        } catch (error: any) {
+          Alert.alert("Error", error.message);
+        }
+      }
+    };
+
+    iniciarConGoogle();
+  }, [response]);
 
   const iniciarSesion = async () => {
     if (!email || !password) {
@@ -41,11 +103,11 @@ export default function Login() {
       if (usuarioSnap.exists()) {
         const data = usuarioSnap.data();
 
-        await AsyncStorage.setItem("rol", data.rol);
+        await AsyncStorage.setItem("rol", data.rol || "usuario");
         await AsyncStorage.setItem("email", credencial.user.email || "");
       }
 
-      router.replace("../tabs/dashboard");
+      router.replace("/tabs/dashboard");
     } catch (error: any) {
       Alert.alert("Error", "Correo o contraseña incorrectos");
     }
@@ -75,6 +137,14 @@ export default function Login() {
 
         <TouchableOpacity style={styles.boton} onPress={iniciarSesion}>
           <Text style={styles.textoBoton}>Ingresar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.botonGoogle}
+          disabled={!request}
+          onPress={() => promptAsync()}
+        >
+          <Text style={styles.textoGoogle}>🌐 Continuar con Google</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/registro")}>
@@ -132,6 +202,20 @@ const styles = StyleSheet.create({
   },
   textoBoton: {
     color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  botonGoogle: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  textoGoogle: {
+    color: colors.text,
     fontWeight: "bold",
     fontSize: 16,
   },
