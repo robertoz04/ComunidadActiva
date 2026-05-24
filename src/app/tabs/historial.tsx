@@ -181,7 +181,7 @@ export default function Historial() {
 
       <TouchableOpacity
         style={styles.botonVolver}
-        onPress={() => router.push("/(tabs)/dashboard")}
+        onPress={() => router.push("/tabs/dashboard")}
       >
         <Text style={styles.textoBotonVolver}>Volver al inicio</Text>
       </TouchableOpacity>

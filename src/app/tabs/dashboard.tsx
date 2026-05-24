@@ -9,6 +9,9 @@ import {
   View,
 } from "react-native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   deleteDoc,
@@ -18,8 +21,6 @@ import {
   query,
 } from "firebase/firestore";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 import { auth, db } from "../../firebase/config";
 
 type Evento = {
@@ -36,6 +37,7 @@ export default function Dashboard() {
 
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [rol, setRol] = useState("");
+  const [logueado, setLogueado] = useState(false);
 
   const obtenerFechaLocal = (fecha: string) => {
     const [year, month, day] = fecha.split("-").map(Number);
@@ -60,7 +62,10 @@ export default function Dashboard() {
   const cerrarSesion = async () => {
     await auth.signOut();
     await AsyncStorage.removeItem("rol");
-    router.replace("/login");
+    await AsyncStorage.removeItem("email");
+    setRol("");
+    setLogueado(false);
+    router.replace("/tabs/dashboard");
   };
 
   const eliminarEvento = async (id: string) => {
@@ -73,13 +78,20 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const cargarDatos = async () => {
-      const rolGuardado = await AsyncStorage.getItem("rol");
-      setRol(rolGuardado || "");
-      cargarEventos();
-    };
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      setLogueado(!!user);
 
-    cargarDatos();
+      if (user) {
+        const rolGuardado = await AsyncStorage.getItem("rol");
+        setRol(rolGuardado || "usuario");
+      } else {
+        setRol("");
+      }
+
+      cargarEventos();
+    });
+
+    return unsub;
   }, []);
 
   const eventosProximos = eventos.filter((evento) => {
@@ -106,7 +118,7 @@ export default function Dashboard() {
       if (diferenciaDias === 0) {
         return {
           id: evento.id,
-          texto: `🔔 Hoy tienes el evento "${evento.titulo}" a las ${evento.hora}`,
+          texto: `🔔 Hoy está programado "${evento.titulo}" a las ${evento.hora}`,
           tipo: "hoy",
         };
       }
@@ -114,7 +126,7 @@ export default function Dashboard() {
       if (diferenciaDias === 1) {
         return {
           id: evento.id,
-          texto: `⏰ Mañana tienes el evento "${evento.titulo}" a las ${evento.hora}`,
+          texto: `⏰ Mañana está programado "${evento.titulo}" a las ${evento.hora}`,
           tipo: "manana",
         };
       }
@@ -208,9 +220,18 @@ export default function Dashboard() {
       <Text style={styles.subtitulo}>Agenda comunitaria</Text>
 
       <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.botonSalir} onPress={cerrarSesion}>
-          <Text style={styles.textoSalir}>Cerrar sesión</Text>
-        </TouchableOpacity>
+        {logueado ? (
+          <TouchableOpacity style={styles.botonSalir} onPress={cerrarSesion}>
+            <Text style={styles.textoSalir}>Cerrar sesión</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.botonLogin}
+            onPress={() => router.push("/login")}
+          >
+            <Text style={styles.textoLogin}>Iniciar sesión para participar</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {notificaciones.length > 0 && (
@@ -297,6 +318,16 @@ const styles = StyleSheet.create({
   },
   textoSalir: {
     color: "#DC2626",
+    fontWeight: "bold",
+  },
+  botonLogin: {
+    backgroundColor: "#DBEAFE",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+  },
+  textoLogin: {
+    color: "#2563EB",
     fontWeight: "bold",
   },
   fab: {

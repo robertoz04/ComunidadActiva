@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth";
 
 import {
   addDoc,
@@ -43,6 +44,7 @@ export default function DetalleEvento() {
   const [comentario, setComentario] = useState("");
   const [calificacion, setCalificacion] = useState("");
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
+  const [logueado, setLogueado] = useState(false);
 
   const cargarEvento = async () => {
     if (!id) return;
@@ -74,8 +76,14 @@ export default function DetalleEvento() {
   };
 
   useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setLogueado(!!user);
+    });
+
     cargarEvento();
     cargarComentarios();
+
+    return unsub;
   }, [id]);
 
   const confirmarAsistencia = async () => {
@@ -129,7 +137,7 @@ export default function DetalleEvento() {
     cargarComentarios();
   };
 
-    const compartirEvento = async () => {
+  const compartirEvento = async () => {
     if (!evento) {
       Alert.alert("Error", "El evento todavía no ha cargado");
       return;
@@ -166,7 +174,6 @@ Te esperamos.`;
     )}&body=${encodeURIComponent(cuerpo)}`;
 
     await Linking.openURL(url);
-
   };
 
   if (!id) {
@@ -176,7 +183,7 @@ Te esperamos.`;
 
         <TouchableOpacity
           style={styles.boton}
-          onPress={() => router.push("../(tabs)/dashboard")}
+          onPress={() => router.push("/tabs/dashboard")}
         >
           <Text style={styles.textoBoton}>Volver al Dashboard</Text>
         </TouchableOpacity>
@@ -207,44 +214,64 @@ Te esperamos.`;
         </View>
       </View>
 
-      <TouchableOpacity style={styles.boton} onPress={confirmarAsistencia}>
-        <Text style={styles.textoBoton}>✅ Confirmar asistencia</Text>
-      </TouchableOpacity>
+      {!logueado && (
+        <View style={styles.avisoLogin}>
+          <Text style={styles.avisoTexto}>
+            Puedes ver el evento libremente. Para confirmar asistencia, comentar
+            o calificar, inicia sesión.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.botonLoginDetalle}
+            onPress={() => router.push("/login")}
+          >
+            <Text style={styles.textoLoginDetalle}>Iniciar sesión</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {logueado && (
+        <>
+          <TouchableOpacity style={styles.boton} onPress={confirmarAsistencia}>
+            <Text style={styles.textoBoton}>✅ Confirmar asistencia</Text>
+          </TouchableOpacity>
+
+          <View style={styles.card}>
+            <Text style={styles.seccionTitulo}>Comentario y calificación</Text>
+
+            <TextInput
+              placeholder="Escribe tu comentario"
+              style={[styles.input, styles.textArea]}
+              value={comentario}
+              onChangeText={setComentario}
+              multiline
+            />
+
+            <TextInput
+              placeholder="Calificación del 1 al 5"
+              style={styles.input}
+              keyboardType="numeric"
+              value={calificacion}
+              onChangeText={setCalificacion}
+            />
+
+            <TouchableOpacity
+              style={styles.botonComentario}
+              onPress={guardarComentario}
+            >
+              <Text style={styles.textoBoton}>💬 Guardar comentario</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       <TouchableOpacity style={styles.botonCompartir} onPress={compartirEvento}>
         <Text style={styles.textoBoton}>📤 Compartir evento</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.botonCorreo} onPress={compartirPorCorreo}>
-  <Text style={styles.textoBoton}>📧 Compartir por correo</Text>
-</TouchableOpacity>
-
-      <View style={styles.card}>
-        <Text style={styles.seccionTitulo}>Comentario y calificación</Text>
-
-        <TextInput
-          placeholder="Escribe tu comentario"
-          style={[styles.input, styles.textArea]}
-          value={comentario}
-          onChangeText={setComentario}
-          multiline
-        />
-
-        <TextInput
-          placeholder="Calificación del 1 al 5"
-          style={styles.input}
-          keyboardType="numeric"
-          value={calificacion}
-          onChangeText={setCalificacion}
-        />
-
-        <TouchableOpacity
-          style={styles.botonComentario}
-          onPress={guardarComentario}
-        >
-          <Text style={styles.textoBoton}>💬 Guardar comentario</Text>
-        </TouchableOpacity>
-      </View>
+        <Text style={styles.textoBoton}>📧 Compartir por correo</Text>
+      </TouchableOpacity>
 
       <Text style={styles.seccionTitulo}>Comentarios del evento</Text>
 
@@ -321,42 +348,60 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 6,
   },
+  avisoLogin: {
+    backgroundColor: "#DBEAFE",
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 18,
+  },
+  avisoTexto: {
+    color: "#1E3A8A",
+    textAlign: "center",
+    marginBottom: 10,
+    fontWeight: "600",
+  },
+  botonLoginDetalle: {
+    backgroundColor: "#2563EB",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  textoLoginDetalle: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
   boton: {
-  backgroundColor: "#DBEAFE",
-  paddingVertical: 13,
-  borderRadius: 18,
-  alignItems: "center",
-  marginBottom: 10,
-},
-
-botonCompartir: {
-  backgroundColor: "#EDE9FE",
-  paddingVertical: 13,
-  borderRadius: 18,
-  alignItems: "center",
-  marginBottom: 18,
-},
-
-botonCorreo: {
-  backgroundColor: "#FEF3C7",
-  paddingVertical: 13,
-  borderRadius: 18,
-  alignItems: "center",
-  marginBottom: 18,
-},
-
-botonComentario: {
-  backgroundColor: "#DCFCE7",
-  paddingVertical: 13,
-  borderRadius: 18,
-  alignItems: "center",
-},
-
-textoBoton: {
-  color: colors.text,
-  fontWeight: "bold",
-  fontSize: 16,
-},
+    backgroundColor: "#DBEAFE",
+    paddingVertical: 13,
+    borderRadius: 18,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  botonCompartir: {
+    backgroundColor: "#EDE9FE",
+    paddingVertical: 13,
+    borderRadius: 18,
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  botonCorreo: {
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 13,
+    borderRadius: 18,
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  botonComentario: {
+    backgroundColor: "#DCFCE7",
+    paddingVertical: 13,
+    borderRadius: 18,
+    alignItems: "center",
+  },
+  textoBoton: {
+    color: colors.text,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
   seccionTitulo: {
     fontSize: 22,
     fontWeight: "bold",
